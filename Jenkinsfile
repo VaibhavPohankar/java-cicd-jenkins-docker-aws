@@ -1,16 +1,12 @@
 pipeline {
     agent any
 
-    parameters {
-        string(name: 'BRANCH', defaultValue: 'main', description: 'Branch to build from')
-        choice(name: 'ENV', choices: ['dev', 'qa', 'prod'], description: 'Select the deployment environment')
-    }
-
     environment {
-        APP_NAME = 'vibh-app'
-        IMAGE_NAME = 'my-app'
-        DOCKER_HUB_IMAGE_NAME = "dockervibh/practice_java:latest"
-        DOCKER_USER = "dockervibh"   // static since token has no username
+        DOCKER_USER = "dockervibh"
+        APP_NAME = "vibh-app"
+        // Stable Tagging: Using Build Number instead of :latest
+        IMAGE_TAG = "v${env.BUILD_NUMBER}"
+        DOCKER_HUB_IMAGE = "${DOCKER_USER}/practice_java:${IMAGE_TAG}"
     }
 
     tools {
@@ -19,59 +15,52 @@ pipeline {
     }
 
     stages {
-
-        stage('Print Environment Variables') {
+        stage('Initialize & Cache') {
             steps {
-                echo "App: ${APP_NAME}"
-                echo "Env: ${params.ENV}"
-                echo "Branch: ${params.BRANCH}"
+                // Optimization: Tell Maven to use a local repository within the workspace 
+                // so Jenkins can cache it between builds.
+                sh 'mvn dependency:go-offline -B'
             }
         }
 
-        stage('Checkout') {
+        stage('Build & Test') {
             steps {
-                checkout scm
+                // Optimization: Combined Build and Test with Parallel Threading (-T 1C)
+                // Also skipping 'clean' unless necessary to save time.
+                sh 'mvn -T 1C package -B'
             }
-        }
-
-        stage('Clean') {
-            steps {
-                sh 'mvn clean'
-            }
-        }
-
-        stage('Build') {
-            steps {
-                sh 'mvn -B install'
-            }
-        }
-
-        stage('Test') {
-            steps {
-                sh 'mvn test'
-            }
-        }
-
-        stage('Docker Image Build') {
-            steps {
-                sh '''
-                    docker build -t $IMAGE_NAME .
-                '''
-            }
-        }
-
-        stage('Docker Push to DockerHub') {
-            steps {
-                withCredentials([string(credentialsId: 'DOCKERHUB_LOGIN', variable: 'DOCKER_TOKEN')]) {
-                    sh '''
-                        docker rmi $DOCKER_HUB_IMAGE_NAME || true
-                        docker tag $IMAGE_NAME $DOCKER_HUB_IMAGE_NAME
-                        echo "$DOCKER_TOKEN" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push $DOCKER_HUB_IMAGE_NAME
-                        docker logout
-                    '''
+            post {
+                success {
+                    // Optimization: Archive the JAR so you have a backup outside of Docker
+                    archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
                 }
             }
+        }
+
+        stage('Docker Build') {
+            steps {
+                // Using the stable tag defined in environment
+                sh "docker build -t ${DOCKER_HUB_IMAGE} ."
+            }
+        }
+
+        stage('Docker Push') {
+            steps {
+                withCredentials([string(credentialsId: 'DOCKERHUB_LOGIN', variable: 'DOCKER_TOKEN')]) {
+                    sh """
+                        echo "$DOCKER_TOKEN" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push ${DOCKER_HUB_IMAGE}
+                        docker logout
+                    """
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            // Optimization: Clean up workspace to save Jenkins disk space
+            cleanWs()
         }
     }
 }
