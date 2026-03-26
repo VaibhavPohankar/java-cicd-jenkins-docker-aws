@@ -57,10 +57,3 @@ pipeline {
         }
     }
     
-    post {
-        always {
-            // Optimization: Clean up workspace to save Jenkins disk space
-            cleanWs()
-        }
-    }
-}
