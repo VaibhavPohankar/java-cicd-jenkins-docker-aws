@@ -1,3 +1,4 @@
+
 FROM maven:3.9.8-eclipse-temurin-17 AS builder
 
 WORKDIR /app
@@ -16,6 +17,6 @@ RUN useradd -ms /bin/sh devopsuser
 USER devopsuser
 
 COPY --from=builder /app/target/vibh-app-*.jar app.jar
-cd vagr
+
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
