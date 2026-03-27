@@ -6,7 +6,12 @@ import java.net.InetSocketAddress;
 
 public class App {
 
-    private static final String MESSAGE = "Welcome to vaibhav Docker hosted jenkins 2nd pipeline";
+    private static final String MESSAGE = "Welcome to vaibhav Docker hosted jenkins based web APP DEPLOYMENT PIPELINE";
+
+    // ✅ KEEP THIS (fixes your test failure)
+    public String getMessage() {
+        return MESSAGE;
+    }
 
     public static void main(String[] args) throws Exception {
 
