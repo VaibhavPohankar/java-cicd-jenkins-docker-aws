@@ -15,7 +15,7 @@ public class App {
 
     public static void main(String[] args) throws Exception {
 
-        HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
+        HttpServer server = HttpServer.create(new InetSocketAddress(9090), 0);
 
         server.createContext("/", exchange -> {
             exchange.sendResponseHeaders(200, MESSAGE.length());
@@ -25,6 +25,6 @@ public class App {
         });
 
         server.start();
-        System.out.println("Server started on port 8081");
+        System.out.println("Server started on port 9090");
     }
 }
